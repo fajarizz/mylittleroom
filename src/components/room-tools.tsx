@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useState } from "react";
 import type { RoomDimensions } from "./room-grid";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,19 +15,34 @@ const DEFAULT_DIMENSIONS: RoomDimensions = {
   height: 270,
 };
 
-export function RoomTools({
+export const RoomTools = memo(function RoomTools({
   dimensions,
   onDimensionsChange,
   autoRotate,
   onAutoRotateChange,
   onResetView,
+  onSaveLayout,
 }: {
   dimensions: RoomDimensions;
   onDimensionsChange: (dimensions: RoomDimensions) => void;
   autoRotate: boolean;
   onAutoRotateChange: (autoRotate: boolean) => void;
   onResetView: () => void;
+  onSaveLayout: () => Promise<void>;
 }) {
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
+    "idle"
+  );
+
+  const handleSave = async () => {
+    setSaveState("saving");
+    try {
+      await onSaveLayout();
+      setSaveState("saved");
+    } finally {
+      setTimeout(() => setSaveState("idle"), 1800);
+    }
+  };
   const sliders = [
     { key: "width", label: "Width" },
     { key: "depth", label: "Depth" },
@@ -36,7 +52,7 @@ export function RoomTools({
   return (
     <Tabs
       defaultValue="view"
-      className="bg-background/80 rounded-2xl border p-4 shadow-none backdrop-blur-md"
+      className="bg-background/90 rounded-2xl border p-4 shadow-none"
     >
       <TabsList className="w-full">
         <TabsTrigger value="view" className="flex-1">
@@ -61,6 +77,13 @@ export function RoomTools({
         <Separator />
         <Button variant="outline" onClick={onResetView}>
           Reset view
+        </Button>
+        <Button onClick={handleSave} disabled={saveState === "saving"}>
+          {saveState === "saved"
+            ? "Saved ✓"
+            : saveState === "saving"
+              ? "Saving…"
+              : "Save furniture layout"}
         </Button>
       </TabsContent>
       <TabsContent value="room" className="flex flex-col gap-5 pt-4">
@@ -100,15 +123,33 @@ export function RoomTools({
           clear.
         </p>
         <p className="text-muted-foreground text-sm">
-          Floor cells are addressed A1, A2, A3 — columns A to L run west to
-          east, rows 1 to 14 run north to south. The compass points north.
-          The east wall has an 80 × 200 cm door opening, 100 cm from the south
-          edge and 90 cm from the north.
+          Floor cells are addressed A1, A2, A3 — the 10 cm grid extends beyond
+          the walls with continuing labels: columns A–X run west to east,
+          rows 1–27 run north to south. The west wall inherits the same rows
+          and adds height levels H1–H27 from the floor up, so a wall cell is
+          read as its floor row plus a height level. The east wall has an
+          80 × 200 cm door opening, 100 cm from the south edge and 90 cm from
+          the north.
         </p>
         <p className="text-muted-foreground text-sm">
-          Drag to orbit the center, scroll to zoom, right-click to pan.
+          A table and a wardrobe start at the M22 → X27 and O1 → X6 cells. A
+          loft bed fills A8 → I27 along the west wall (90 × 200 platform at
+          160 cm under a 200 cm frame, with a rung ladder). A dark pegboard
+          (widths 60 / 92 / 150, 37 cm deep, 180 cm tall, with shelves and
+          feet) leans on the north wall in the A1 → F1 cells (widths 60 / 92 /
+          150 selectable in its panel). A grey 120 × 100 carpet lies at the
+          M18 → X27 cells. A black metal rack (120 × 40 × 200, five shelf
+          levels) stands at M24 → X27. Click any piece to select it, drag it
+          across the floor (it snaps to the 10 cm grid), and rotate it 90° at
+          a time with the panel button or the R key.
+        </p>
+        <p className="text-muted-foreground text-sm">
+          Drag to orbit the center, scroll to zoom, right-click to pan. WASD
+          flies the camera around the room; arrow keys nudge the selected
+          piece one grid cell at a time. Click a floor cell to select it;
+          Shift+click another cell to extend the selection into a range.
         </p>
       </TabsContent>
     </Tabs>
   );
-}
+});

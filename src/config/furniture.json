@@ -1,0 +1,47 @@
+{
+  "pieces": [
+    {
+      "id": "table",
+      "x0": -10,
+      "z0": 75,
+      "rotations": 2
+    },
+    {
+      "id": "wardrobe",
+      "x0": 20,
+      "z0": -135,
+      "rotations": 0
+    },
+    {
+      "id": "loftBed",
+      "x0": -80,
+      "z0": 35,
+      "rotations": 3
+    },
+    {
+      "id": "pegboard",
+      "x0": -70,
+      "z0": 95,
+      "rotations": 2,
+      "variant": 60
+    },
+    {
+      "id": "carpet",
+      "x0": -120,
+      "z0": -95,
+      "rotations": 0
+    },
+    {
+      "id": "rack",
+      "x0": -120,
+      "z0": -135,
+      "rotations": 0
+    },
+    {
+      "id": "cubby",
+      "x0": -120,
+      "z0": 95,
+      "rotations": 0
+    }
+  ]
+}

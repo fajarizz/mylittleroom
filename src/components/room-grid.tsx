@@ -11,13 +11,66 @@ export type RoomDimensions = {
 const DOOR_WIDTH = 80;
 const DOOR_HEIGHT = 200;
 const DOOR_FROM_SOUTH = 100;
+export const BAND_CELLS = 6;
 
 type LinePusher = (
   from: [number, number, number],
   to: [number, number, number]
 ) => void;
 
-function buildFaceGeometry(build: (push: LinePusher) => void) {
+function residue(value: number, step: number) {
+  return ((value % step) + step) % step;
+}
+
+export function bandBoundaries(
+  halfSize: number,
+  step: number,
+  bandCells: number
+) {
+  const anchor = residue(-halfSize, step);
+  const baseLimit = halfSize + bandCells * step;
+  const limitOffset = (((anchor - residue(baseLimit, step)) % step) + step) % step;
+  const limit = baseLimit + limitOffset;
+
+  const bounds: number[] = [];
+  let z = -halfSize - bandCells * step;
+  bounds.push(z);
+  while (z < halfSize - 0.001) {
+    z = Math.min(z + step, halfSize);
+    bounds.push(z);
+  }
+  if (Math.abs(residue(halfSize, step) - anchor) > 0.001) {
+    const delta = (((anchor - residue(halfSize, step)) % step) + step) % step;
+    z = halfSize + delta;
+    bounds.push(z);
+  }
+  while (z < limit - 0.001) {
+    z += step;
+    bounds.push(z);
+  }
+  return bounds;
+}
+
+export function bandAxes({
+  width,
+  depth,
+}: {
+  width: number;
+  depth: number;
+}, step: number) {
+  const halfW = width / 2;
+  const halfD = depth / 2;
+  const boundsX = bandBoundaries(halfW, step, BAND_CELLS);
+  const boundsZ = bandBoundaries(halfD, step, BAND_CELLS);
+  return {
+    boundsX,
+    boundsZ,
+    limitX: boundsX[boundsX.length - 1],
+    limitZ: boundsZ[boundsZ.length - 1],
+  };
+}
+
+export function buildFaceGeometry(build: (push: LinePusher) => void) {
   const points: number[] = [];
   build((from, to) => points.push(...from, ...to));
 
@@ -65,17 +118,18 @@ function buildRoomFaces({ width, depth, height }: RoomDimensions, step: number) 
   const halfD = depth / 2;
   const halfH = height / 2;
 
+  const { boundsX, boundsZ, limitX, limitZ } = bandAxes(
+    { width, depth },
+    step
+  );
+
   const floor = buildFaceGeometry((push) => {
-    for (let x = -halfW + step; x < halfW - 0.001; x += step) {
-      push([x, 0, -halfD], [x, 0, halfD]);
+    for (const z of boundsZ) {
+      push([-limitX, 0, z], [limitX, 0, z]);
     }
-    for (let z = -halfD + step; z < halfD - 0.001; z += step) {
-      push([-halfW, 0, z], [halfW, 0, z]);
+    for (const x of boundsX) {
+      push([x, 0, -limitZ], [x, 0, limitZ]);
     }
-    push([-halfW, 0, -halfD], [halfW, 0, -halfD]);
-    push([-halfW, 0, halfD], [halfW, 0, halfD]);
-    push([-halfW, 0, -halfD], [-halfW, 0, halfD]);
-    push([halfW, 0, -halfD], [halfW, 0, halfD]);
   });
 
   const wallX = buildFaceGeometry((push) => {
@@ -136,7 +190,7 @@ function buildRoomFaces({ width, depth, height }: RoomDimensions, step: number) 
   return { floor, wallX, eastWall, wallZ };
 }
 
-function applyCenterFog(
+export function applyCenterFog(
   material: THREE.Material,
   fogCenter: { value: THREE.Vector3 }
 ) {
@@ -259,23 +313,17 @@ function FadingFace({
 
 export function RoomGrid({
   dimensions,
-  step = 20,
+  step = 10,
+  fogCenter,
 }: {
   dimensions: RoomDimensions;
   step?: number;
+  fogCenter: { value: THREE.Vector3 };
 }) {
   const faces = useMemo(
     () => buildRoomFaces(dimensions, step),
     [dimensions, step]
   );
-
-  const fogCenter = useMemo(
-    () => ({ value: new THREE.Vector3(0, dimensions.height / 2, 0) }),
-    []
-  );
-  useEffect(() => {
-    fogCenter.value.set(0, dimensions.height / 2, 0);
-  }, [dimensions.height, fogCenter]);
 
   const { basicMaterial, dashedMaterial } = useMemo(() => {
     const basicMaterial = new THREE.LineBasicMaterial({
